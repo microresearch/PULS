@@ -1,0 +1,16 @@
+** notebook notes//
+
+pulse delayer (notes for that? 24/9 grey notebook:
+
+X pulses can be delayed every second, XandY graph determines delay for say 2000 pulses per second (memory=each pulse has a time and a delay) 2khz signal…
+
+modes for resolution
+
+delay and decay
+
+how delay works - swop rec/play…??? delay line is simpler… samples go
+into delay line which wraps… // list of pulses…
+
+ffedback- wet/dry out
+
+pulse stretch
