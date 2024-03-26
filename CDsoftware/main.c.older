@@ -1,0 +1,190 @@
+#include <errno.h>
+#include <sys/stat.h>
+#include <sys/times.h>
+#include <sys/unistd.h>
+#include "stm32f4xx.h"
+#include "stm32f4xx_dac.h"
+#include "stm32f4xx_gpio.h"
+#include "stm32f4xx_adc.h"
+#include "stm32f4xx_dma.h"
+#include "stm32f4xx_rcc.h"
+#include "stm32f4xx_spi.h"
+
+#include "adc.h"
+/*
+
+*** SEGMENTS
+
+Testing on STM32F446 NUCLEO. Prog header is same as TOUCH. STM is same as touch
+
+This was copied from TOUCH so some things will need to change: 
+
+But we can keep DAC on PA4
+
+TODO: list our new I/O here, check interrupts and PWM
+
+fast interrupt (TIM?) for all shift registers with counters, interrupt for ADCs (TIM?), interrupt for pulsed SR, PWM for default/normed clockings (set by speed pot)
+
+I/O:
+
+- pulse ins: PC3-5 + PB6 clkins(interrupts), PC7/8 pulsein, PC9-MCB, to PC14-LSB of 6 bits
+- ADC 1-11
+- DAC out PA4
+- TIM1-CH1 drived normed top LFSR - and we need 2 extra internal timers! 
+- 11 pulse outs: PB2,3,4,10,12,13,14 = 5 fakes and 6 real out + now we have changed for schematic: PA11=pulse6, PA12=pulse4, PC15=pulse5, PB15=pulse7
+
+apparently there are 12x 16bit and 2x 32 bit timers (TIM2, TIM5) 
+
+refs here:
+
+https://stm32f4-discovery.net/2014/08/stm32f4-external-interrupts-tutorial/
+
+https://electronics.stackexchange.com/questions/281831/how-to-configure-stm32f4s-tim1-and-8-for-pwm
+
+TESTED: for schematic that a simple pulse out from micro will trigger transistor->pulse in!
+
+//////////////////////////////////FROM TOUCH:
+
+- first steps: ADC inputs, DAC output (should be on PA4 (DAC_OUT1) which is marked A2 on lower left of board!
+
+refs:  https://stackoverflow.com/questions/45718493/stm32-f446re-simple-dac-output-what-am-i-missing
+
+https://csserver.evansville.edu/~blandfor/Engr101/NucleoBoardUserManual.pdf
+
+ */
+
+/*
+void TIM2_IRQHandler(void) {
+  // flash on update event
+  if (TIM2->SR & TIM_SR_UIF) GPIOA->ODR ^= (1 << 5);
+   
+  TIM2->SR = 0x0; // reset the status register
+  }*/
+
+/* DMA buffer for ADC  & copy */
+__IO uint16_t adc_buffer[5];
+
+#define delay()						 do {	\
+    register unsigned int ix;					\
+    for (ix = 0; ix < 10000; ++ix)				\
+      __asm__ __volatile__ ("nop\n\t":::"memory");		\
+  } while (0)
+
+#define delayy()						 do {	\
+    register unsigned int ix;					\
+    for (ix = 0; ix < 10000000; ++ix)				\
+      __asm__ __volatile__ ("nop\n\t":::"memory");		\
+  } while (0)
+
+
+void io_config2 (void) {
+
+       // Enable clocks for port A and DAC
+       RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+       RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
+       RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);
+       GPIO_InitTypeDef GPIO_InitStructure;
+
+       GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+       GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
+       GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+       GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+       GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+       GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+       /* DAC channel 1 Configuration */
+       DAC_InitTypeDef DAC_InitStructure1;
+       DAC_InitStructure1.DAC_Trigger = DAC_Trigger_None;
+       DAC_InitStructure1.DAC_WaveGeneration = DAC_WaveGeneration_None;
+       DAC_InitStructure1.DAC_OutputBuffer = DAC_OutputBuffer_Enable;
+       DAC_Init(DAC_Channel_1, &DAC_InitStructure1);
+       //       DAC_StructInit(&DAC_InitStructure1);
+       /* Enable DAC Channel 1 */
+       DAC_Cmd(DAC_Channel_1, ENABLE);
+}
+
+
+//DAC_InitTypeDef dac_init_s;
+
+int main(void)
+{
+  unsigned int i, adcr, j, k=0, otherk=0, flipped, prev_state, value;
+    i = adcr = j = k = 0;
+
+    // clock we need to setup as in TOUCH
+
+    // ADC - now just 5 channels - skip pin 4 as we use this for the DAC ???
+    ADC1_Init((uint16_t *)adc_buffer);
+
+    // output pins for addressing = x3 + 2 for enables is 5 total
+    // say: PB8, 9, 10, 13, 14
+
+    
+    // and maybe add timer for updating all in interrupt
+
+    
+    while(1) {
+    
+      // testing transistor switch of 4066 on and off
+      //        GPIOB->ODR = 0b0000000100000000;  //PB8-13? - for Y0 which is on pin 13 (4051): first output on TL074 on prototype!
+      //        delayy();
+      //        GPIOB->ODR = 0b0000000000000000;  //PB8-13? - for Y0 which is on pin 13 (4051): first output on TL074 on prototype!
+      //	delayy();
+     
+      
+    }
+}
+
+#ifdef  USE_FULL_ASSERT
+#define assert_param(expr) ((expr) ? (void)0 : assert_failed((uint8_t *)__FILE__, __LINE__))
+
+void assert_failed(uint8_t* file, uint32_t line)
+{ 
+  while (1)
+    {
+    }
+}
+#endif
+
+#if 1
+void NMI_Handler(void)
+{ 
+  while(1){};
+}
+
+void HardFault_Handler(void)
+{ 
+  while(1){};
+  }
+
+
+void MemManage_Handler(void)
+{ 
+  while(1){};
+}
+
+void BusFault_Handler(void)
+{ 
+  while(1){};
+}
+
+void UsageFault_Handler(void)
+{ 
+  while(1){};
+}
+
+void SVC_Handler(void)
+{ 
+  while(1){};
+}
+
+void DebugMon_Handler(void)
+{ 
+  while(1){};
+}
+
+void PendSV_Handler(void)
+{ 
+  while(1){};
+}
+#endif
