@@ -4,11 +4,20 @@
 typedef struct heavens_ { 
   uint32_t trigger;
   uint32_t changed;
+  uint32_t pulsek[2], pulsekk[2]; // process of rising trigger on input - also for incoming output
 
+  // reset and other options as 5 bits
+  uint32_t opts;
+  
   float kin;
   float kout;
   uint32_t pulsein[2];
   uint32_t pulseout[2];
+
+  uint32_t pulseup[2];
+  uint32_t pulselen[2];
+  uint32_t pulsestart[2];
+  uint32_t pulsecnt[2];
   uint32_t routein;
   
   // delay line

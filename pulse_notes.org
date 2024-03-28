@@ -1,10 +1,175 @@
+** code here is now for performance pulse processor
+
+- DONEwe need modes and all CVs in former CD interrupt
+- DONE-ADC in and DAC too
+- DONEpulse ins and outs (how to address this - again by sides/)
+- *how we can do window of pulse timings when we have interrupt/timing loop...?*
+
+- neuron code:
+
+DONEall: others: LIFX, izhikevich-modelX, Hodgkin Huxley, TermanWang (SLUGen) - have as modes but also with different params and param mappings
+
+(eg. also can set say rates and then other params on next mode retain these)
+
+DONE:neurons as functions 
+
+- layout from notebook???
+
+DONE- how we could start to chain together neurons (also for proposed neuronal module) // and feedback into top one with modes setting amount of feedback
+
+- delay line and options to set parameters for delay line then head into neuron params - so params not tied to ADCs always
+
+- also as threshold neuron out mixes into pulses L, R and lower...
+
+*That these can also be used in RAVEN.*
+
+*** TODO:
+
+28/3/2024:
+pulsin[0] is clk, [1] is pulsin hw if we have
+
+pulseout[0] should be delayline which thus needs to always run 
+pulseout[1] is unused - but 2nd out is kout thresh
+pulsek is our own kin as pulse
+
+- why [3] has influence?
+
+///
+
+- DONEabstract out neurons as each side needs own statics...
+- DONEmode_init 
+
+DONE- test speed as we will need to adapt to running 4x HH (slowest neurons): what was speed before? 16 Khz - now is 6KHz
+
+DONEhow fast can we run 1xHH and 4x HH? 32/220 loop we have
+
+- how was routing in CD?DONE
+
+was binary routing so can have more than one route in or: uint8_t inroute[4]= {3,0,1,2};
+
+- TESTED!basic delay lines test and size of these: DONE: function to access delay line SR, and to write to delay line
+
+-  DONEhow delay line speed works - to TEST
+
+- DONEtest delay speed, prototype delay length///
+
+- define basics for Vienna: modes, pulse length>>>???, 
+
+MODES now:
+- select neuron, X param or other params such as reset
+- X,Y neuron params
+- delay line or pass through, shared or local delay line
+- delay line params
+- top mix param (where?) 
+
+prev:
+
+- select neuron with x. y param as nature of reset, input: no reset, pulse as reset, etc... where we store/process this?
+
+type of neuron
+neuron input selections, reset selections etc as bits...
+in=
+
+- xy params (but for nada no xy)???
+- next set params???^^ inc input mix (and for others than top - eg xor etc)
+- delay line/or not and params=length=end/speed/start???
+
+delay line - what enters?
+
+- pulse length of out - also makes sense for input into other sections...
+
+say 16 major modes so far???
+what else? routings? 
+
+////
+
+DONEpulse[0]/clk as a reset...
+
+TEST pulse length/add new timers
+
+///
+
+- how/can we generate our out pulses with a certain duration - one shot? but we have 6 which would need 6 timers...
+
+// we can set shortest delay but then we are in length of interrupt 1/32khz ==??? check this...
+
+https://community.st.com/t5/stm32-mcus-products/starting-timers-in-one-pulse-mode/td-p/285440
+
+////
+
+- XY as in CD for params...
+
+- to pull together into modes: neurons with input options, set neuron params/input mix, delay line, pulse length // q of all these settings
+
+// if we select neurons by mode then we can't jump ahead... 
+
+so modes (very rough for vienna and what else we need):
+
+- select neuron with x. y param as nature of reset, input: no reset, pulse as reset, etc... where we store/process this?
+
+type of neuron
+neuron input selections, reset selections etc as bits...
+in=
+
+- xy params (but for nada no xy)???
+- next set params???^^ inc input mix (and for others than top - eg xor etc)
+- delay line/or not and params=length=end/speed/start???
+
+delay line - what enters?
+
+- pulse length of out - also makes sense for input into other sections...
+
+say 16 major modes so far???
+what else? routings? 
+
+*** latest notebook notes
+
+- set neuron parameters (how to keep these?)
+- set length of delay line (read and write, set taps)... see those notes...
+
+Each of the 4 sides has:
+- neuron (or not) - with input (ADC reset (threshold or pulse from where: HW, other sides), with parameters
+- delay line (or not?) / divider / other ops: with reset also and which parameters?
+
+is divider delay line increasing speed?
+
+-- logic of what pulse enters delay line
+
+- out as pulses (how many or not), out as voltage/value to final DAC or next input
+- out as pulses to other sides
+- ADC in -> comparator/pulse and/or into neuron
+- in HW pulses (one or two)
+- in of any routed values
+- in any routed pulses
+
+- do we have speed and wheel input like we did on CD for pulse entry (of incoming section is higher speed than previous?)
+- routings?
+- length of pulse outs (how to set - with speed knob)?
+
+*** delay line notes
+
+- 2 approaches... straight delay line, pulse delayer concept/identity from below...
+
+delay line:
+- READ speed/length/count
+- WRITE speed/length/count
+
+multiple taps, multiple inputs, 
+
+4 seperate delay lines, shared delay lines...ins
+
+single bits for a pulse so we need SR for delay line and to abstract out details - place/retrieve
+
 ** pulse delayer/stretcher/manipulator
 
 TO RESOLVE:
 
-- do we have modes?
 - what is the platform? could use CD as test platform (choose CVs for XY)? memory?
-- do we have multiple layers of out (possibel outcomes)
+
+how many pulse ins are on CD: we have 4 clock ins, 2 left and right pulse ins: 6 pulse ins...
+and we have 6 pulse ins, many CVs
+
+- do we have multiple layers of out (possible outcomes)
 
 defining:
 - pulse in/s/multiple in/outs? 
@@ -33,6 +198,11 @@ how delay works - swop rec/play…??? delay line is simpler… samples go
 into delay line which wraps… // list of pulses…
 
 ** newer notes
+
+- now more as a delay line for pulses... or different approaches
+- but in delay line we don't have control over an individual pulse's delay!
+
+///
 
 feedback
 

@@ -1,31 +1,5 @@
 /*
-
-<--------------+-------^-------+-------<
-               |       |       |       |
-               |       |       |       |
-               +-------+       +-------+
-
-0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  1  0  0  1  1  1  1  1  1  1  1  1  1  1  1  1  1  
-0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  1  0  0  1  1  1  1  1  1  1  1  1  1  1  1  1  
-0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  1  0  0  1  1  1  1  1  1  1  1  1  1  1  1  
-0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  1  0  0  1  1  1  1  1  1  1  1  1  1  1  
-0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  
-0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  
-1  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  1  1  1  1  0  1  1  
-1  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  0  1  0  0  1  1  1  1  0  1  
-0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  1  1  1  1  0  0  1  0  1  
-0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  1  1  1  1  0  0  1  0  
-0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  1  1  1  1  0  0  1  
-0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  1  1  1  1  0  0  
-0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  1  1  1  1  0  
-0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  1  1  1  1  
-0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  1  0  0  0  0  0  0  0  1  1  1  
-0  0  0  0  0  0  0  0  1  1  1  1  1  1  1  1  1  1  1  0  0  0  0  1  1  1  1  1  1  1  0  0  
-1  0  0  0  0  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  0  1  1  1  1  0  1  0  
-1  0  0  0  0  0  0  0  1  0  1  1  1  1  1  1  1  1  1  1  1  0  0  0  1  1  0  0  0  0  1  0  
-1  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  0  1  1  1  1  0  
-1  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  0  1  1  1  1  
-
+NEURON/IAM
   */ 
 
 #include "stm32f4xx.h"
@@ -50,8 +24,8 @@ uint32_t delay_line[FULLINE/32]; // single delay line - 32 bits x FULLLINE = 640
 
 static heavens gate[4]; 
 
-static uint32_t CV[4]={0,0,0,0};
-static uint32_t CVL[4]={0,0,0,0};
+static uint32_t CV[4]={1,1,1,1};
+static uint32_t CVL[4]={1,1,1,1};
 
 #define LOWEST 0.000005f
 volatile uint32_t intflag[4]={0,0,0,0}; // interrupt flag...
@@ -62,16 +36,6 @@ volatile uint32_t intflag[4]={0,0,0,0}; // interrupt flag...
     for (ix = 0; ix < 100; ++ix)				\
       __asm__ __volatile__ ("nop\n\t":::"memory");		\
   } while (0)
-
-// {0speedfrom/index, 1speedcv1, 2speedcv2, 3bit/index, 4bitcv1, 5bitcv2, 6lencv, 7adc, 8adccv, 9prob/index, 10probcv1, 11probvcv2, 12altfuncindex, 13dactype, 14dacpar, 15strobespd, 16troutetype, 17 route->now strobe function index}, 18 is abstract CV/unused, 19 is now glob, 20 is now abstract index, 21 is mix
-uint32_t matrixNN[22]={0<<7,4095,0,  0,2047,2047,31<<7, 0,0<<7, 0,4095,0,0,      31<<7,0, 0, 3<<9, 0, 2048, 0, 0, 1024}; // trial types 16]
-uint32_t matrixLL[22]={0,4095,0,  0,2047,0, 31<<7,   0,0,        0,2048,0,0,      31<<7,0, 0, 0, 0, 0, 0, 0, 1024};
-uint32_t matrixCC[22]={1<<7,4095,0,  0,2047,0, 31<<7, 0,0,       0,2048,0,0,      0<<7,0, 0, 0, 0, 0, 0, 0, 1024}; 
-uint32_t matrixRR[22]={2<<7,4095,0,2047,0,2047, 31<<7, 0,0,      0,2048,0,0,      0<<7,0, 0, 3<<9, 0, 0, 0, 0, 1024};  // spdfracend
-//uint32_t matrixTT[22]={0,4095,0,  0,0,0, 31<<7, 0,0,         0,2048,0,0,    0<<7,0, 0, 0, 0, 0, 0, 0, 2048}; 
-//                     speed   bit       len   adc,adc-cv    prob   alt     dac, dacpar      strobespdindex, type, route, abstrct cv, glob, abstract index, mixer
-
-//static uint32_t nul=0;
 
 static uint32_t binary[5]={0,0,0,0}; // binary global routing
 static uint32_t ADCin;
@@ -245,8 +209,8 @@ float Nparams[7][7]={ {0.1f, 0.1f, 0.5f, 0.5f},
 		      {1.0f, 3.0f, 1.0f, 5.0f, 0.005f, 4.0f, -1.6f},
 		      {0.5f, 0.5f, -60.0f, 48.0f},
 		      {0.05f, 0.03f},
-		      {10.6f, 115.0f, 36.0f, -12.0f, 0.3f, 120.0f},
-		      {1.0f, 1.0f, 0.0001f, 0.1f, 1.0f}
+		      {0.004f, 1.0f, 36.0f, -12.0f, 0.3f, 120.0f},
+		      {1.0f, 1.0f, 0.0001f, 0.1f, 1.0f},
 };
 
 float Nstats[7][4]={ {0.0, 0.0},
@@ -254,14 +218,26 @@ float Nstats[7][4]={ {0.0, 0.0},
 		     {0.1, 0.1},
 		     {-0.65},
 		     {70.0, 0.05, 0.54, 0.34},
-		     {0.1, 0.1}
+		     {0.1, 0.1},
 };
 
 void mode_init(void){
   uint32_t x,y;
   for (x=0;x<4;x++){
-  gate[x].trigger=0;
-  gate[x].changed=0;
+    gate[x].pulsestart[0]=0;
+    gate[x].pulsestart[1]=0;
+    gate[x].pulselen[0]=1;
+    gate[x].pulselen[1]=1;
+    gate[x].pulsecnt[0]=0;
+    gate[x].pulsecnt[1]=0;
+    gate[x].pulseup[0]=0;
+    gate[x].pulsek[0]=0;
+    gate[x].pulsekk[0]=0;
+    gate[x].pulsek[1]=0;
+    gate[x].pulsekk[1]=0;
+    gate[x].opts=0;
+    gate[x].trigger=0;
+    gate[x].changed=0;
 
   gate[x].Rspeed=1.0f;
   gate[x].Rlength=MAXDEL-1;
@@ -283,15 +259,18 @@ void mode_init(void){
   gate[x].SPcount=1.0;
   gate[x].SPstart=1;
 
-  gate[x].neuron=6; 
   gate[x].process=0;  
   
   for (y=0;y<MAXDEL/32;y++){
     gate[x].delay_line[y]=0;
   }
   }
-
-  for (x=0;x<7;x++){
+  gate[0].neuron=0;
+  gate[1].neuron=5;
+  gate[2].neuron=5; 
+  gate[3].neuron=5;
+  
+  for (x=0;x<7;x++){ 
     for (y=0;y<7;y++){
       gate[0].Nparam[x][y]=Nparams[x][y];
       gate[1].Nparam[x][y]=Nparams[x][y];
@@ -359,7 +338,7 @@ float hindmarshrose(float input, uint32_t reset, uint32_t w){ // CV? TODO // htt
   float r=gate[w].Nparam[1][4];
   float s=gate[w].Nparam[1][5];
   float xR=gate[w].Nparam[1][6];
-  float scale = 0.01;
+  float scale = 0.1;
   
   //  static float x = -1.6;  // membrane potential
   //  static float y = 4.0;
@@ -541,7 +520,14 @@ float nadan(float input, uint32_t reset, uint32_t w){ // passes through
   return input;
 }  
 
-float (*Nfunc[7])(float input, uint32_t reset, uint32_t w)={fitzhugh, hindmarshrose, izhikevich, LIF, HH, termanwang, nadan};
+// if we just have HH on the top one for speed?
+float (*Nfunc[7])(float input, uint32_t reset, uint32_t w)={fitzhugh, hindmarshrose, izhikevich, LIF, HH, termanwang, nadan}; // would be nice to have 8 or 9 or just double up
+// could also have different available params
+
+float (*NfuncsinHH[7])(float input, uint32_t reset, uint32_t w)={fitzhugh, hindmarshrose, izhikevich, LIF, termanwang, nadan, nadan}; // would be nice to have 8 or 9 or just doubl
+
+uint32_t remapN[8]={0,1,2,3,4,5,6,0};
+
 
 // delayline
 uint32_t accessbit(uint32_t *delayline, uint32_t count){
@@ -562,24 +548,20 @@ void writebit(uint32_t *delayline, uint32_t value, uint32_t count){
 
 inline static float mod0p(float value, float length, uint32_t whichone) 
 {
-  if (length!=0){
   while (value > (length-1))
         value -= length;
   if (value<=0.0) value+=gate[whichone].SPstart;
   if (value<0.01) value=gate[whichone].SPstart;
-  }
     return value;
 }
 
 inline static float mod0r(float value, float length, uint32_t whichone) 
 {
-    if (length!=0){
   while (value > (length-1))
         value -= length;
   if (value<=0.0) value+=gate[whichone].SRstart;
   if (value<0.01) value=gate[whichone].SRstart;
-    }
-    return value;
+  return value;
 }
 
 
@@ -613,12 +595,52 @@ uint32_t nadap(uint32_t input){
 
 uint32_t kinroute[4]= {3,0,1,2};
 
+float kinf(uint32_t k, uint32_t o, uint32_t d){ // process 8 input options
+  float tmp;
+  switch(o){
+  case 0:
+    tmp=((float)k/4095.0);
+    break;
+  case 1:
+    tmp=((float)k/4095.0);
+    tmp*=gate[kinroute[d]].kout;
+    break;
+  case 2:
+    tmp=gate[kinroute[d]].kout;
+    break;
+  case 3:      
+    tmp=1.0f * gate[kinroute[d]].pulseout[0];
+    break;
+  case 4:
+    tmp=1.0f * gate[d].pulsein[0]; // any stretch of this - single impulse?
+    break;
+  case 5:
+    tmp=0.0f;
+    break;
+  case 6: // AND
+    tmp=((float)k/4095.0);
+    tmp*=gate[kinroute[d]].pulseout[0];
+    break;
+  case 7: // OR or XOR
+    tmp=((float)k/4095.0);
+    tmp*=(~gate[kinroute[d]].pulseout[0]);
+    break;
+  }
+  return tmp;
+}
+
+uint32_t *resetter[4][4]={{&gate[0].pulsein[0], &gate[0].pulsek[0], &gate[0].pulsek[1], &gate[3].pulseout[0]},
+			  {&gate[1].pulsein[0], &gate[1].pulsek[0], &gate[0].pulsek[0], &gate[0].pulseout[0]}, // as top is only one with input
+			    {&gate[2].pulsein[0], &gate[2].pulsek[0], &gate[0].pulsek[0], &gate[1].pulseout[0]},
+			    {&gate[3].pulsein[0], &gate[3].pulsek[0], &gate[0].pulsek[0], &gate[2].pulseout[0]}};
+
+
 void TIM2_IRQHandler(void) // running with period=1024, prescale=32 at 2KHz - how fast can we run this?
 // period 32, prescaler 8 = toggle of 104 KHz
 // 4 and 4 we go up to 800 KHz
 {
   uint32_t www=0, ww=0, first=0, flipperrr=0, bitn=1;
-  uint32_t tmp, k, reset=0;
+  uint32_t tmp, tmpp, k, tmppp, reset=0;
   static uint32_t ping=0;
   
   TIM_ClearITPendingBit(TIM2, TIM_IT_Update); // needed
@@ -633,28 +655,75 @@ void TIM2_IRQHandler(void) // running with period=1024, prescale=32 at 2KHz - ho
     
   // ADC input into k;
   ADCgeneric; 
-  // process k into pulse and/or into neuron depends on top mode!
-  gate[0].kin=((float)k/2048.0)-1.0; // also mix in of kout[3]!! as an option
-  //  gate[0].kin=((float)k/4095.0);
-  //  gate[0].kin*=gate[kinroute[0]].kout;
-  // kin is ADC, gate[route].kin, pulse/in from previous, HW pulse in, none/null, mix/logic of these
-  //  gate[0].kin=gate[kinroute[0]].kout
-  //  gate[0].kin=1.0f * gate[kinroute[0]].pulseout[0];
-  //  gate[0].kin=1.0f * gate[0].pulsein[0]; // any stretch of this - single impulse?
-  //  gate[0].kin=0.0f;
-  // logic ^/OR/AND of: ADC, HW pulse, prev pulse also gate[0].kin= gate[kinroute[0]].pulseout[0] * gate[kinroute[0]].pulseout[0];
+  tmpp= (gate[0].opts>>3)&7; // 8 options
+  gate[0].kin=kinf(k, tmpp, 0);     
 
-  // neuron trials... // sets of modes with fixed parameters - also modes with/without input and with reset as input thereshold
+  tmp=mode[0]>>4; // 4 modes!   // mode - but mode[0] is mapped to 0-63 in mapping
+  switch(tmp){
+  case 0: // choose neuron and set other params: reset, neuron input: - select neuron with x. y param as nature of reset, input: no reset, pulse as reset, etc...
+    gate[0].neuron=CV[0]>>9;// 8=3 bitsx
+    gate[0].opts=CVL[0]>>8; //     // reset is 2 bits, input could be 3 bits // so 5 bits
+    reset=*(resetter[0][gate[0].opts&3]);
+    gate[0].kout=(*Nfunc[remapN[gate[0].neuron]])(gate[0].kin, reset, 0); 
+    break;
+  case 1: // set params for neuron, opts stay as they were...
+    gate[0].Nparam[gate[0].neuron][0]=CV[0]/4095.0;
+    gate[0].Nparam[gate[0].neuron][1]=CVL[0]/4095.0;
+    gate[0].kout=(*Nfunc[remapN[gate[0].neuron]])(gate[0].kin, reset, 0); 
+    break;
+  case 2: //      2- delay line or pass through, shared or local delay line.. some params: speed, length, start
+    gate[0].kout=(*Nfunc[remapN[gate[0].neuron]])(gate[0].kin, reset, 0); // run neuron though
+    // what goes into delay_line, local line, and kout
+    gate[0].SPlength=CV[2]<<4;
+    if (gate[0].SPlength==0) gate[0].SPlength=1;
+    if (gate[0].SPlength>=FULLINE) gate[0].SPlength=FULLINE-1;
+    gate[0].SRlength=CVL[0]<<4;
+    if (gate[0].SRlength==0) gate[0].SRlength=1;
+    if (gate[0].SRlength>=FULLINE) gate[0].SRlength=FULLINE-1;
+    break;
+  case 3: // length of output pulses - we have delay line
+    gate[0].kout=(*Nfunc[remapN[gate[0].neuron]])(gate[0].kin, reset, 0); // run neuron though
+    gate[0].pulselen[0]=CV[0]>>4;
+    if (gate[0].pulselen[0]==0) gate[0].pulselen[0]=1;
+    gate[0].pulselen[1]=CVL[0]>>4;
+    if (gate[0].pulselen[1]==0) gate[0].pulselen[1]=1;
+    break;
+  }
 
-  gate[0].Nparam[gate[0].neuron][0]=CV[0]/4095.0;
-  gate[0].Nparam[gate[0].neuron][1]=CVL[0]/4095.0;
-  gate[0].kout=(*Nfunc[gate[0].neuron])(gate[0].kin, reset, 0); 
-  if (gate[0].kout>0.5f) gate[0].pulseout[0]=1;
-  else gate[0].pulseout[0]=0;
+  if (gate[0].kout>0.5) tmp=1; // delay line always
+  else tmp=0;
+  gate[0].pulseout[0]=sharedelaywr(tmp, www);
+    
+  if (gate[0].kin>0.5f && gate[0].pulsekk[0]==0) { // process input into pulse
+    gate[0].pulsek[0]=1; // but only once on rise
+    gate[0].pulsekk[0]=1;
+  }
+  else if (gate[0].kin<0.5f){
+    gate[0].pulsekk[0]=0;
+  }
+  
+  // trial pulse length TEST! 100 uS pulse with current divider - how we can get shorter - other interrupt, shortest or these length, run faster with just one HH
+  if (gate[0].kout>0.5f && gate[0].pulseup[0]==0) { // how to trigger only on upward pulse // *2 for 1 and 3 below
+    gate[0].pulsestart[0]=1; 
+    gate[0].pulseup[0]=1;
+  }
+  else if (gate[0].kout<0.5f) gate[0].pulseup[0]=0;
+  
+  if (gate[0].pulsestart[0]==1) { 
+    gate[0].pulsecnt[0]++;
+    if (gate[0].pulsecnt[0]>gate[0].pulselen[0]) {
+      gate[0].pulsestart[0]=0;
+      gate[0].pulsecnt[0]=0;
+  }
+  }
 
   // HW out
-  if (gate[0].pulseout[0]) *pulsoutLO[2]=pulsouts[2];	 
+  if (gate[0].pulsestart[0]) *pulsoutLO[2]=pulsouts[2];	 
   else *pulsoutHI[2]=pulsouts[2];      
+  gate[0].pulsek[0]=0; // so is refreshed
+  gate[0].pulsek[1]=0;
+
+
   
   // next 3...
    for (www=1;www<4;www++){ // top is above neuron model which is also a pulse
@@ -665,55 +734,124 @@ void TIM2_IRQHandler(void) // running with period=1024, prescale=32 at 2KHz - ho
     intflag[www]=0;
     }
     else gate[www].pulsein[0]=0;
-
     gate[www].pulsein[1]=!(GPIOC->IDR & pulsins[www]); 
 
-     gate[www].Nparam[gate[www].neuron][0]=CV[www]/4095.0;
-     gate[www].Nparam[gate[www].neuron][1]=CVL[www]/4095.0;
-     gate[www].kin=gate[kinroute[www]].kout;
-     gate[www].kout=(*Nfunc[gate[www].neuron])(gate[www].kin, reset, www); 
+  tmp=mode[www]>>4; // 4 modes!   // mode - but mode[www] is mapped to 0-63 in mapping
+ switch(tmp){
+  case 0: // choose neuron and set other params: reset, neuron input: - select neuron with x. y param as nature of reset, input: no reset, pulse as reset, etc...
+    //    gate[0].Nparam[gate[0].neuron][0]=CV[0]/4095.0;
+    //    gate[0].Nparam[gate[0].neuron][1]=CVL[0]/4095.0;
+    gate[www].neuron=CV[www]>>9;// 8=3 bitsx
+    gate[www].opts=CVL[www]>>8; //     // reset is 2 bits, input could be 3 bits // so 5 bits
+    reset=*(resetter[www][gate[www].opts&3]);
+    tmpp= (gate[www].opts>>3)&7; // 8 options
+    gate[www].kin=gate[kinroute[www]].kout;
+    gate[www].kout=(*NfuncsinHH[remapN[gate[www].neuron]])(gate[www].kin, reset, www); 
+    break;
+  case 1: // set params for neuron, opts stay as they were...
+    gate[www].Nparam[gate[www].neuron][0]=CV[www]/4095.0;
+    gate[www].Nparam[gate[www].neuron][1]=CVL[www]/4095.0;
+    tmpp= (gate[www].opts>>3)&7; // 8 options
+    gate[www].kin=gate[kinroute[www]].kout;
+    gate[www].kout=(*NfuncsinHH[remapN[gate[www].neuron]])(gate[www].kin, reset, www); 
+    break;
+  case 2: //      2- delay line or pass through, shared or local delay line.. some params: speed, length, start
+    tmpp= (gate[www].opts>>3)&7; // 8 options
+    gate[www].kin=gate[kinroute[www]].kout;
+    gate[www].kout=(*NfuncsinHH[remapN[gate[www].neuron]])(gate[www].kin, reset, www); // run neuron though
+    // what goes into delay_line, local line, and kout
+       gate[www].SPlength=CV[2]<<4;
+       if (gate[www].SPlength==0) gate[www].SPlength=1;
+       if (gate[www].SPlength>=FULLINE) gate[www].SPlength=FULLINE-1;
+       gate[www].SRlength=CVL[www]<<4;
+       if (gate[www].SRlength==0) gate[www].SRlength=1;
+       if (gate[www].SRlength>=FULLINE) gate[www].SRlength=FULLINE-1;
+       break;
+  case 3: // length of output pulses - we have delay line
+    tmpp= (gate[www].opts>>3)&7; // 8 options
+    gate[www].kin=gate[kinroute[www]].kout;
+    gate[www].kout=(*NfuncsinHH[remapN[gate[www].neuron]])(gate[www].kin, reset, www); // run neuron though
+    gate[www].pulselen[0]=CV[www]>>4;
+    if (gate[www].pulselen[0]==0) gate[www].pulselen[0]=1;
+    gate[www].pulselen[1]=CVL[www]>>4;
+    if (gate[www].pulselen[1]==0) gate[www].pulselen[1]=1;
+    break;
+  }
 
-     if (gate[www].kout>0.5f) gate[www].pulseout[0]=1;
-     else gate[www].pulseout[0]=0;
-     // and for 1 and 3 we need second pulse out - which is what? logic or???
-     gate[www].pulseout[1]=gate[www].pulseout[0]|gate[www].pulsein[1]; // OR // XOR?
-     
-    // processes - as function pointers for each side - depends on mode..
-    // process all gate sides simultaneously    
-    // trial of delay line - remember it is pulses!
-     if (www==2){
-       if (gate[2].kout>0.5) tmp=1;
-       else tmp=0;
-       gate[2].pulseout[0]=sharedelaywr(tmp, www);
-       //       gate[2].SPspeed=CV[2]/1024.0f;
-       //       gate[2].SRspeed=CVL[2]/1024.0f; // speed/start/length as params
-       gate[2].SPlength=CV[2];
-       //       gate[2].SPcount=CV[2];
-       if (gate[2].SPlength>=FULLINE) gate[2].SPlength=FULLINE-1;
-       //       gate[2].SRlength=CVL[2]<<4;
-       //       if (gate[2].SRlength>=FULLINE) gate[2].SRlength=FULLINE-1;
-     }
+  if (gate[www].kout>0.5) tmp=1;
+  else tmp=0;
+  gate[www].pulseout[0]=sharedelaywr(tmp, www);
+  
+  if (gate[www].kin>0.5f && gate[www].pulsekk[0]==0) { // process input into pulse
+    gate[www].pulsek[0]=1; // but only once on rise
+    gate[www].pulsekk[0]=1;
+  }
+  else if (gate[www].kin<0.5f){
+    gate[www].pulsekk[0]=0;
+  }
+  
+  // trial pulse length TEST! 100 uS pulse with current divider - how we can get shorter - other interrupt, shortest or these length, run faster with just one HH
+  if (gate[www].kout>0.5f && gate[www].pulseup[0]==0) { // how to trigger only on upward pulse // *2 for 1 and 3 below
+    gate[www].pulsestart[0]=1; 
+    gate[www].pulseup[0]=1;
+  }
+  else if (gate[www].kout<0.5f) gate[www].pulseup[0]=0;
+  
+  if (gate[www].pulsestart[0]==1) { 
+    gate[www].pulsecnt[0]++;
+    if (gate[www].pulsecnt[0]>gate[www].pulselen[0]) {
+      gate[www].pulsestart[0]=0;
+      gate[www].pulsecnt[0]=0;
+  }
+  }
 
+  // we need to do for second pulse for 1 and 3
+  //     gate[www].pulseout[1]=gate[www].pulseout[0]|gate[www].pulsein[1]; // OR // XOR?
+  if (gate[www].pulseout[0]) { 
+    gate[www].pulsestart[1]=1; 
+    gate[www].pulseup[1]=1;
+  }
+  else if (!gate[www].pulseout[0]) gate[www].pulseup[1]=0;
+  
+  if (gate[www].pulsestart[1]==1) { 
+    gate[www].pulsecnt[1]++;
+    if (gate[www].pulsecnt[1]>gate[www].pulselen[1]) {
+      gate[www].pulsestart[1]=0;
+      gate[www].pulsecnt[1]=0;
+  }
+  }
 
+  
    }
-    // HW out: top: 2, left 3,4, lower 5, right 6,7
+
+   // HW out: top: 2, left 3,4, lower 5, right 6,7
    // but no on-shot length - 6 timers for 6 outs
-   if (gate[1].pulseout[0]) *pulsoutLO[3]=pulsouts[3];	 // left
+  // HW out
+
+   if (gate[1].pulsestart[0]) *pulsoutLO[3]=pulsouts[3];	 // left
    else *pulsoutHI[3]=pulsouts[3];      
-   if (gate[1].pulseout[1]) *pulsoutLO[4]=pulsouts[4];	 
+   if (gate[1].pulsestart[1]) *pulsoutLO[4]=pulsouts[4];	 
    else *pulsoutHI[4]=pulsouts[4];      
 
-   if (gate[2].pulseout[0]) *pulsoutLO[5]=pulsouts[5];	 // mid
-   else *pulsoutHI[5]=pulsouts[5];      
-   if (gate[3].pulseout[0]) *pulsoutLO[6]=pulsouts[6];	 // right
+   if (gate[2].pulsestart[0]) *pulsoutLO[5]=pulsouts[5];	 // mid
+   else *pulsoutHI[5]=pulsouts[5];
+   
+   if (gate[3].pulsestart[0]) *pulsoutLO[6]=pulsouts[6];	 // right
    else *pulsoutHI[6]=pulsouts[6];      
-   if (gate[3].pulseout[1]) *pulsoutLO[7]=pulsouts[7];	 
+   if (gate[3].pulsestart[1]) *pulsoutLO[7]=pulsouts[7];	 
    else *pulsoutHI[7]=pulsouts[7];      
+
+   gate[1].pulsek[0]=0; // so is refreshed
+   gate[1].pulsek[1]=0;
+   gate[2].pulsek[0]=0; // so is refreshed
+   gate[2].pulsek[1]=0;
+   gate[3].pulsek[0]=0; // so is refreshed
+   gate[3].pulsek[1]=0;
 
    
    k = (int)((gate[2].kout+1.0)*2048.0); // 3 as feedback only or???
    //      k = (int)((gate[2].kout)*4095.0); 
-      DAC_SetChannel1Data(DAC_Align_12b_R, k); // 1000/4096 * 3V3 == 0V8
+   DAC_SetChannel1Data(DAC_Align_12b_R, k); // 1000/4096 * 3V3 == 0V8
 
   // any fake pulse norms?
   
