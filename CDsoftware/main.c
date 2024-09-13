@@ -383,7 +383,7 @@ int main(void)
   TIM_TimeBase_InitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
   TIM_TimeBase_InitStructure.TIM_CounterMode = TIM_CounterMode_Up;
   TIM_TimeBase_InitStructure.TIM_Period = 32; // was 8, now 12 for other interruot
-  TIM_TimeBase_InitStructure.TIM_Prescaler =64; // was 8//16 before// but check it what speed is this 18khz toggle = 36k  - how we can check - with one of our pins as out // was 21 (now 32 for latest geomantic code // was 128/64 - try again
+  TIM_TimeBase_InitStructure.TIM_Prescaler =92; // was 8//16 before// but check it what speed is this 18khz toggle = 36k  - how we can check - with one of our pins as out // was 21 (now 32 for latest geomantic code // was 128/64 - try again
   // 21 above is for 1Hz lowest speed // now we have 42 2x
   TIM_TimeBaseInit(TIM2, &TIM_TimeBase_InitStructure);
   

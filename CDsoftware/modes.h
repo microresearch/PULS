@@ -8,7 +8,7 @@ typedef struct heavens_ {
 
   // reset and other options as 5 bits
   uint32_t opts;
-  
+  float thresh;
   float kin;
   float kout;
   uint32_t pulsein[2];

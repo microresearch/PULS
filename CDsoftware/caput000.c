@@ -22,6 +22,11 @@ NEURON/IAM
 
 uint32_t delay_line[FULLINE/32]; // single delay line - 32 bits x FULLLINE = 64000 at 16khz=4 seconds???
 
+float delay1right[80]; //->d1length of ourfloats
+float delay1left[80];//=>d1length of ourfloats
+float delay2right[80]; //->d1length of ourfloats
+float delay2left[80];//=>d1length of ourfloats
+
 static heavens gate[4]; 
 
 static uint32_t CV[4]={1,1,1,1};
@@ -204,13 +209,16 @@ void SRspeedtest(uint8_t w){ // null
 }
 */
 
+//TODO: add tube to params... 
+
 // params to copy
 float Nparams[7][7]={ {0.1f, 0.1f, 0.5f, 0.5f},
-		      {1.0f, 3.0f, 1.0f, 5.0f, 0.005f, 4.0f, -1.6f},
+		      {0.25f, 0.7f, 1.0f, 5.0f, 0.005f, 4.0f, -1.6f},
 		      {0.5f, 0.5f, -60.0f, 48.0f},
 		      {0.05f, 0.03f},
 		      {0.004f, 1.0f, 36.0f, -12.0f, 0.3f, 120.0f},
 		      {1.0f, 1.0f, 0.0001f, 0.1f, 1.0f},
+		      {0.99f, -0.782f, 0.07, 0.02}
 };
 
 float Nstats[7][4]={ {0.0, 0.0},
@@ -219,10 +227,19 @@ float Nstats[7][4]={ {0.0, 0.0},
 		     {-0.65},
 		     {70.0, 0.05, 0.54, 0.34},
 		     {0.1, 0.1},
+		     {0.0, 0.0}
 };
 
 void mode_init(void){
   uint32_t x,y;
+
+  for (x=0; x<80; x++) {
+    delay1right[x]= 0.0f;
+    delay1left[x]= 0.0f;
+    delay2right[x]= 0.0f;
+    delay2left[x]= 0.0f;
+	 }
+  
   for (x=0;x<4;x++){
     gate[x].pulsestart[0]=0;
     gate[x].pulsestart[1]=0;
@@ -289,6 +306,61 @@ void mode_init(void){
     }
 
 }
+
+// note: stat is storage, param is param
+float tubes(float input, uint32_t reset, uint32_t w){   // Twotubes from SC. SLUGen
+  float f1in, f1out, f2out, f2in, out;
+  uint32_t i;
+  // loss and k as params, and length of the 2 tubes
+  float loss=gate[w].Nparam[6][0];
+  float k=gate[w].Nparam[6][1];
+  uint32_t d1length=gate[w].Nparam[6][2]*100.0; // say 7 and 2 so 0.07
+  uint32_t d2length=gate[w].Nparam[6][3]*100.0; // 0.02
+  
+  float * d1right= delay1right;
+  float * d1left= delay1left;
+  float * d2right= delay2right;
+  float * d2left= delay2left;
+  uint32_t d1rightpos=gate[w].Nstat[6][0];
+  uint32_t d1leftpos=gate[w].Nstat[6][1];
+  uint32_t d2rightpos=gate[w].Nstat[6][2];
+  uint32_t d2leftpos=gate[w].Nstat[6][3];
+		    
+  float d1rightout= d1right[d1rightpos];
+  float d1leftout= d1left[d1leftpos];
+  float d2rightout= d2right[d2rightpos];
+  float d2leftout= d2left[d2leftpos];
+
+  out=d2rightout;
+
+  //update all filters ????
+  f1out= loss*0.5f*(f1in+d1leftout);
+  //		  f1out= loss*d1leftout; // why f1in here as last f1in and same question below? - this was a low pass
+  f1in= d1leftout;
+  
+  f2out= -(loss*(0.5f*f2in+0.5f*d2rightout)); // added minus which is for open tube! REFLECTION
+  f2in= d2rightout;
+
+  //calculate inputs of all delays
+  d1right[d1rightpos]= input+f1out;
+  d2right[d2rightpos]= d1rightout*(1.0f+k)+ ((-k)*d2leftout); // losses here? 
+  //- checked against http://www.music.mcgill.ca/~gary/courses/2015/618/week8/node19.html
+  d2left[d2leftpos]= f2out;
+  d1left[d1leftpos]= d1rightout*k+ ((1.0f-k)*d2leftout); // losses here?
+  //- checked against http://www.music.mcgill.ca/~gary/courses/2015/618/week8/node19.html
+  
+  d1rightpos = (d1rightpos+1)%d1length;
+  d2rightpos = (d2rightpos+1)%d2length;
+  d1leftpos = (d1leftpos+1)%d1length;
+  d2leftpos = (d2leftpos+1)%d2length;
+
+  gate[w].Nstat[6][0]=(int)d1rightpos;
+  gate[w].Nstat[6][1]=(int)d1leftpos;
+  gate[w].Nstat[6][2]=(int)d2rightpos;
+  gate[w].Nstat[6][3]=(int)d2leftpos;
+  return out;
+}
+
   
 // params: b0, b1, urate, wrate
 // static: u, w
@@ -324,21 +396,21 @@ float fitzhugh(float input, uint32_t reset, uint32_t w){   // Fitzhugh from SC. 
   return u;
   }
 
-// params: a,b,c,d,r,s,xR
+// params: a,b,c,d,r,s,xR // TODO: hacked a bit to work with CV// to fix one day...
 // static: x,y,z
 float hindmarshrose(float input, uint32_t reset, uint32_t w){ // CV? TODO // https://jamesmccaffrey.wordpress.com/2020/01/27/hindmarsh-rose-model-simulation-using-c-or-python/
   //  float a = 1.0;  float b = 3.0;
   //  float c = 1.0;  float d = 5.0;
   //  float r = 0.005;  float s = 4.0;
   //  float xR = -1.6; 
-  float a=gate[w].Nparam[1][0];
-  float b=gate[w].Nparam[1][1];
-  float c=gate[w].Nparam[1][2];
+  float a=1.0;//gate[w].Nparam[1][0]/4.0;
+  float b=3.0;//gate[w].Nparam[1][1]/4.0;
+  float c=gate[w].Nparam[1][0];//gate[w].Nparam[1][2];
   float d=gate[w].Nparam[1][3];
   float r=gate[w].Nparam[1][4];
   float s=gate[w].Nparam[1][5];
-  float xR=gate[w].Nparam[1][6];
-  float scale = 0.1;
+  float xR=gate[w].Nparam[1][1]-1.0;//gate[w].Nparam[1][6];
+  float scale = 0.1; // keep as 0.1
   
   //  static float x = -1.6;  // membrane potential
   //  static float y = 4.0;
@@ -347,7 +419,11 @@ float hindmarshrose(float input, uint32_t reset, uint32_t w){ // CV? TODO // htt
   float y=gate[w].Nstat[1][1];
   float z=gate[w].Nstat[1][2];
 
-//  input*=4.0;
+  if (reset) {
+    x=-1.6; y=4.0; z=2.75;
+  }
+  
+  //input*=4.0;
   float dx = scale * (y + (b * x * x) - (a * x * x * x) - z + input);
   float dy = scale * (c - (5 * x * x) - y);
   float dz = scale * (r * (s * (x - xR) - z));
@@ -374,6 +450,9 @@ float izhikevich(float input, uint32_t reset, uint32_t w){   // Izhikevich: http
   //   static float vv=0.1, uu=0.1;
   float vv=gate[w].Nstat[2][0];
   float uu=gate[w].Nstat[2][1];
+  if (reset) {
+    aa=0.5; bb=0.5; cc=-60; dd=48;
+  }
   
   //   aa=CV[0]/4095.0;
   //   bb=CVL[0]/4095.0;
@@ -402,10 +481,15 @@ float LIF(float input, uint32_t reset, uint32_t w){   // Leaky integrate and fir
 
   float R=gate[w].Nparam[3][0];
   float C=gate[w].Nparam[3][1];
-
+  
    //   static float v = -0.65; 
   float v=gate[w].Nstat[3][0];
 
+  if (reset) {
+    v=-0.65;
+  }
+
+  
    //   R=CV[0]/4095.0;
    //   C=CVL[0]/4095.0;
    
@@ -500,6 +584,11 @@ float termanwang(float input, uint32_t reset, uint32_t w){      // TermanWang: S
   float x=gate[w].Nstat[5][0];
   float y=gate[w].Nstat[5][1];
 
+  if (reset) {
+    x=0.0; y=0.0;
+  }
+
+  
   //  alpha=CV[0]/4095.0; 
   //  beta=CVL[0]/4095.0;
 
@@ -521,12 +610,13 @@ float nadan(float input, uint32_t reset, uint32_t w){ // passes through
 }  
 
 // if we just have HH on the top one for speed?
-float (*Nfunc[7])(float input, uint32_t reset, uint32_t w)={fitzhugh, hindmarshrose, izhikevich, LIF, HH, termanwang, nadan}; // would be nice to have 8 or 9 or just double up
+float (*Nfunc[8])(float input, uint32_t reset, uint32_t w)={fitzhugh, hindmarshrose, izhikevich, LIF, HH, termanwang, tubes, nadan}; // would be nice to have 8 or 9 or just double up
 // could also have different available params
 
-float (*NfuncsinHH[7])(float input, uint32_t reset, uint32_t w)={fitzhugh, hindmarshrose, izhikevich, LIF, termanwang, nadan, nadan}; // would be nice to have 8 or 9 or just doubl
+float (*NfuncsinHH[8])(float input, uint32_t reset, uint32_t w)={fitzhugh, hindmarshrose, izhikevich, LIF, termanwang, tubes, nadan, nadan}; // would be nice to have 8 or 9 or just doubl
 
-uint32_t remapN[8]={0,1,2,3,4,5,6,0};
+uint32_t remapN[8]={0,1,2,3,4,5,6,7};
+uint32_t remapNN[8]={0,1,2,3,4,5,6,7};
 
 
 // delayline
@@ -572,13 +662,24 @@ inline static float mod0r(float value, float length, uint32_t whichone)
 // define basic delay line and nada for pulses
 uint32_t sharedelaywr(uint32_t input, uint32_t whichone){// read and write
   // read first
-  gate[whichone].SPcount=mod0p(gate[whichone].SPcount+gate[whichone].SPspeed, gate[whichone].SPlength, whichone);
+  gate[whichone].Pcount=mod0p(gate[whichone].Pcount+gate[whichone].Pspeed, gate[whichone].Plength, whichone);
   uint32_t val=accessbit(delay_line, gate[whichone].SPcount);
   // write
-  gate[whichone].SRcount=mod0r(gate[whichone].SRcount+gate[whichone].SRspeed, gate[whichone].SRlength, whichone);
-  writebit(delay_line, input, gate[whichone].SRcount);
+  gate[whichone].Rcount=mod0r(gate[whichone].Rcount+gate[whichone].Rspeed, gate[whichone].Rlength, whichone);
+  writebit(delay_line, input, gate[whichone].Rcount);
   return val;
 }
+
+uint32_t owndelaywr(uint32_t input, uint32_t whichone){// read and write
+  // read first
+  gate[whichone].SPcount=mod0p(gate[whichone].SPcount+gate[whichone].SPspeed, gate[whichone].SPlength, whichone);
+  uint32_t val=accessbit(gate[whichone].delay_line, gate[whichone].SPcount);
+  // write
+  gate[whichone].SRcount=mod0r(gate[whichone].SRcount+gate[whichone].SRspeed, gate[whichone].SRlength, whichone);
+  writebit(gate[whichone].delay_line, input, gate[whichone].SRcount);
+  return val;
+}
+
 
 // read only from delay line
 uint32_t sharedelayr(uint32_t input, uint32_t whichone){
@@ -596,7 +697,7 @@ uint32_t nadap(uint32_t input){
 uint32_t kinroute[4]= {3,0,1,2};
 
 float kinf(uint32_t k, uint32_t o, uint32_t d){ // process 8 input options
-  float tmp;
+  float tmp=0.0f;
   switch(o){
   case 0:
     tmp=((float)k/4095.0);
@@ -629,11 +730,14 @@ float kinf(uint32_t k, uint32_t o, uint32_t d){ // process 8 input options
   return tmp;
 }
 
-uint32_t *resetter[4][4]={{&gate[0].pulsein[0], &gate[0].pulsek[0], &gate[0].pulsek[1], &gate[3].pulseout[0]},
-			  {&gate[1].pulsein[0], &gate[1].pulsek[0], &gate[0].pulsek[0], &gate[0].pulseout[0]}, // as top is only one with input
-			    {&gate[2].pulsein[0], &gate[2].pulsek[0], &gate[0].pulsek[0], &gate[1].pulseout[0]},
-			    {&gate[3].pulsein[0], &gate[3].pulsek[0], &gate[0].pulsek[0], &gate[2].pulseout[0]}};
+uint32_t RRR=1;
 
+// uses fixed routings // last is fixed reset...
+uint32_t *resetter[4][4]={{&gate[0].pulsein[0], &gate[0].pulsek[0], &gate[3].pulseout[0], &RRR}, // pulsek[1] is single pulse in to delayline
+			  {&gate[1].pulsein[0], &gate[1].pulsek[0], &gate[0].pulseout[0], &RRR}, // as top is only one with input
+			  {&gate[2].pulsein[0], &gate[2].pulsek[0], &gate[1].pulseout[0], &RRR},
+			  {&gate[3].pulsein[0], &gate[3].pulsek[0], &gate[2].pulseout[0], &RRR}
+};
 
 void TIM2_IRQHandler(void) // running with period=1024, prescale=32 at 2KHz - how fast can we run this?
 // period 32, prescaler 8 = toggle of 104 KHz
@@ -655,14 +759,16 @@ void TIM2_IRQHandler(void) // running with period=1024, prescale=32 at 2KHz - ho
     
   // ADC input into k;
   ADCgeneric; 
-  tmpp= (gate[0].opts>>3)&7; // 8 options
+  tmpp= (gate[0].opts>>2)&7; // 8 options
   gate[0].kin=kinf(k, tmpp, 0);     
 
   tmp=mode[0]>>4; // 4 modes!   // mode - but mode[0] is mapped to 0-63 in mapping
+  //  tmp=2;
   switch(tmp){
   case 0: // choose neuron and set other params: reset, neuron input: - select neuron with x. y param as nature of reset, input: no reset, pulse as reset, etc...
     gate[0].neuron=CV[0]>>9;// 8=3 bitsx
-    gate[0].opts=CVL[0]>>8; //     // reset is 2 bits, input could be 3 bits // so 5 bits
+    //    gate[0].neuron=7;
+    gate[0].opts=CVL[0]>>7; //     // reset is 2 bits, input could be 3 bits // so 5 bits
     reset=*(resetter[0][gate[0].opts&3]);
     gate[0].kout=(*Nfunc[remapN[gate[0].neuron]])(gate[0].kin, reset, 0); 
     break;
@@ -681,33 +787,43 @@ void TIM2_IRQHandler(void) // running with period=1024, prescale=32 at 2KHz - ho
     if (gate[0].SRlength==0) gate[0].SRlength=1;
     if (gate[0].SRlength>=FULLINE) gate[0].SRlength=FULLINE-1;
     break;
-  case 3: // length of output pulses - we have delay line
+  case 3: // length of output pulses - we have delay line - we don't use this...
     gate[0].kout=(*Nfunc[remapN[gate[0].neuron]])(gate[0].kin, reset, 0); // run neuron though
     gate[0].pulselen[0]=CV[0]>>4;
     if (gate[0].pulselen[0]==0) gate[0].pulselen[0]=1;
-    gate[0].pulselen[1]=CVL[0]>>4;
-    if (gate[0].pulselen[1]==0) gate[0].pulselen[1]=1;
+    //    gate[0].pulselen[1]=CVL[0]>>4;
+    //    if (gate[0].pulselen[1]==0) gate[0].pulselen[1]=1;
+    // now is threshold
+    gate[0].thresh=CVL[0]/4095.0;
     break;
   }
 
-  if (gate[0].kout>0.5) tmp=1; // delay line always
-  else tmp=0;
-  gate[0].pulseout[0]=sharedelaywr(tmp, www);
-    
-  if (gate[0].kin>0.5f && gate[0].pulsekk[0]==0) { // process input into pulse
+  if (gate[0].kout>gate[0].thresh && gate[0].pulsekk[1]==0) {
+    tmp=1; // delay line always - but just one pulse
+    gate[0].pulsekk[1]==1; 
+  }
+  else {
+    tmp=0;
+    if (gate[0].kout<gate[0].thresh) {
+    gate[0].pulsekk[1]=0;
+  }
+  }
+  gate[0].pulseout[0]=owndelaywr(tmp, www); // delay line out
+
+  if (gate[0].kin>gate[0].thresh && gate[0].pulsekk[0]==0) { // process input into pulse
     gate[0].pulsek[0]=1; // but only once on rise
     gate[0].pulsekk[0]=1;
   }
-  else if (gate[0].kin<0.5f){
+  else if (gate[0].kin<gate[0].thresh){
     gate[0].pulsekk[0]=0;
   }
-  
+
   // trial pulse length TEST! 100 uS pulse with current divider - how we can get shorter - other interrupt, shortest or these length, run faster with just one HH
-  if (gate[0].kout>0.5f && gate[0].pulseup[0]==0) { // how to trigger only on upward pulse // *2 for 1 and 3 below
+  if (gate[0].pulseout[0] && gate[0].pulseup[0]==0) { // how to trigger only on upward pulse // *2 for 1 and 3 below
     gate[0].pulsestart[0]=1; 
     gate[0].pulseup[0]=1;
   }
-  else if (gate[0].kout<0.5f) gate[0].pulseup[0]=0;
+  else if (gate[0].pulseout[0]==0) gate[0].pulseup[0]=0;
   
   if (gate[0].pulsestart[0]==1) { 
     gate[0].pulsecnt[0]++;
@@ -722,8 +838,12 @@ void TIM2_IRQHandler(void) // running with period=1024, prescale=32 at 2KHz - ho
   else *pulsoutHI[2]=pulsouts[2];      
   gate[0].pulsek[0]=0; // so is refreshed
   gate[0].pulsek[1]=0;
-
-
+  
+  // speed test
+  //  if (ping) *pulsoutLO[2]=pulsouts[2];	 
+  //  else *pulsoutHI[2]=pulsouts[2];      
+  //  ping^=1;
+  
   
   // next 3...
    for (www=1;www<4;www++){ // top is above neuron model which is also a pulse
@@ -739,26 +859,24 @@ void TIM2_IRQHandler(void) // running with period=1024, prescale=32 at 2KHz - ho
   tmp=mode[www]>>4; // 4 modes!   // mode - but mode[www] is mapped to 0-63 in mapping
  switch(tmp){
   case 0: // choose neuron and set other params: reset, neuron input: - select neuron with x. y param as nature of reset, input: no reset, pulse as reset, etc...
-    //    gate[0].Nparam[gate[0].neuron][0]=CV[0]/4095.0;
-    //    gate[0].Nparam[gate[0].neuron][1]=CVL[0]/4095.0;
     gate[www].neuron=CV[www]>>9;// 8=3 bitsx
-    gate[www].opts=CVL[www]>>8; //     // reset is 2 bits, input could be 3 bits // so 5 bits
+    gate[www].opts=CVL[www]>>10; //     // reset is 2 bits
     reset=*(resetter[www][gate[www].opts&3]);
-    tmpp= (gate[www].opts>>3)&7; // 8 options
-    gate[www].kin=gate[kinroute[www]].kout;
-    gate[www].kout=(*NfuncsinHH[remapN[gate[www].neuron]])(gate[www].kin, reset, www); 
+    //    tmpp= (gate[www].opts>>3)&3; 
+    gate[www].kin=gate[kinroute[www]].kout; 
+    gate[www].kout=(*NfuncsinHH[remapNN[gate[www].neuron]])(gate[www].kin, reset, www); 
     break;
   case 1: // set params for neuron, opts stay as they were...
     gate[www].Nparam[gate[www].neuron][0]=CV[www]/4095.0;
     gate[www].Nparam[gate[www].neuron][1]=CVL[www]/4095.0;
-    tmpp= (gate[www].opts>>3)&7; // 8 options
+    //    tmpp= (gate[www].opts>>3)&3; 
     gate[www].kin=gate[kinroute[www]].kout;
-    gate[www].kout=(*NfuncsinHH[remapN[gate[www].neuron]])(gate[www].kin, reset, www); 
+    gate[www].kout=(*NfuncsinHH[remapNN[gate[www].neuron]])(gate[www].kin, reset, www); 
     break;
   case 2: //      2- delay line or pass through, shared or local delay line.. some params: speed, length, start
-    tmpp= (gate[www].opts>>3)&7; // 8 options
+    // tmpp= (gate[www].opts>>3)&3; 
     gate[www].kin=gate[kinroute[www]].kout;
-    gate[www].kout=(*NfuncsinHH[remapN[gate[www].neuron]])(gate[www].kin, reset, www); // run neuron though
+    gate[www].kout=(*NfuncsinHH[remapNN[gate[www].neuron]])(gate[www].kin, reset, www); // run neuron though
     // what goes into delay_line, local line, and kout
        gate[www].SPlength=CV[2]<<4;
        if (gate[www].SPlength==0) gate[www].SPlength=1;
@@ -768,9 +886,9 @@ void TIM2_IRQHandler(void) // running with period=1024, prescale=32 at 2KHz - ho
        if (gate[www].SRlength>=FULLINE) gate[www].SRlength=FULLINE-1;
        break;
   case 3: // length of output pulses - we have delay line
-    tmpp= (gate[www].opts>>3)&7; // 8 options
+    //    tmpp= (gate[www].opts>>3)&3;
     gate[www].kin=gate[kinroute[www]].kout;
-    gate[www].kout=(*NfuncsinHH[remapN[gate[www].neuron]])(gate[www].kin, reset, www); // run neuron though
+    gate[www].kout=(*NfuncsinHH[remapNN[gate[www].neuron]])(gate[www].kin, reset, www); // run neuron though
     gate[www].pulselen[0]=CV[www]>>4;
     if (gate[www].pulselen[0]==0) gate[www].pulselen[0]=1;
     gate[www].pulselen[1]=CVL[www]>>4;
@@ -778,9 +896,17 @@ void TIM2_IRQHandler(void) // running with period=1024, prescale=32 at 2KHz - ho
     break;
   }
 
-  if (gate[www].kout>0.5) tmp=1;
-  else tmp=0;
-  gate[www].pulseout[0]=sharedelaywr(tmp, www);
+  if (gate[www].kout>0.5 && gate[www].pulsekk[1]==0) {
+    tmp=1; // delay line always - but just one pulse
+    gate[www].pulsekk[1]==1; 
+  }
+  else {
+    tmp=0;
+    if (gate[www].kout<0.5) {
+    gate[www].pulsekk[1]=0;
+  }
+  }
+  gate[www].pulseout[0]=owndelaywr(tmp, www);
   
   if (gate[www].kin>0.5f && gate[www].pulsekk[0]==0) { // process input into pulse
     gate[www].pulsek[0]=1; // but only once on rise

@@ -25,14 +25,22 @@ DONE- how we could start to chain together neurons (also for proposed neuronal m
 
 *** TODO:
 
+13/9/2024:
+- added in tube simulation to test
+
+29/3/2024:
+- suddenly much slower??? put ping/timing give us 20KHz??? - we slowed down main.c divider and that seemed to fix!
+- retested neurons and first/left pulse out is not single shot!
+
 28/3/2024:
 pulsin[0] is clk, [1] is pulsin hw if we have
 
-pulseout[0] should be delayline which thus needs to always run 
-pulseout[1] is unused - but 2nd out is kout thresh
-pulsek is our own kin as pulse
+pulseout[0] is delayline out which thus needs to always run 
+pulseout[1] is unused - but 2nd out is kout thresh???
+pulsek[0] is our own kin as pulse, pulsek[1] is input into delayline
 
-- why [3] has influence?
+
+- can also think about threshold which we set at 0.5 now...
 
 ///
 
